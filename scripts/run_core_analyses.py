@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Core statistics from the frozen 7,071-genome source (descriptive figure diagnostics).
+"""Core statistics from the frozen 7,071-genome source.
 Usage: python scripts/run_core_analyses.py --input data/PA_7071.xlsx --output results
 For inferential residuals, see paper; individual Pearson residuals are descriptive.
 """
@@ -97,58 +97,6 @@ def shift_share(early, late, serotype, w0=None,w1=None):
     return result, detail
 
 
-def plot_figures(out, period_sero, annual, ss):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':10,'savefig.dpi':300})
-    fig,ax=plt.subplots(figsize=(9,4.6),layout='constrained')
-    seros=['O11','O6','O1','O4','O2']
-    ps=list(PERIODS)
-    mat=[];labels=[]
-    for s in seros:
-        row=[];lab=[]
-        for p in ps:
-            t=period_sero.loc[(period_sero.period.eq(p))&(period_sero.Serotype.eq(s))]
-            v=float(t.prevalence_pct.iloc[0]) if len(t) else 0
-            allp=period_sero[period_sero.period.eq(p)].sort_values('prevalence_pct',ascending=False)
-            # Rank among all observed serotypes, not only five selected ones.
-            rank=int(allp.reset_index(drop=True).index[allp.Serotype.eq(s)][0]+1) if s in set(allp.Serotype) else None
-            row.append(v);lab.append(f'#{rank}\n{v:.1f}%')
-        mat.append(row);labels.append(lab)
-    arr=np.array(mat)
-    im=ax.imshow(arr,cmap='YlGnBu',aspect='auto')
-    ax.set_yticks(range(len(seros)),seros)
-    ax.set_xticks(range(len(ps)),ps)
-    for i in range(len(seros)):
-        for j in range(len(ps)):
-            ax.text(j,i,labels[i][j],ha='center',va='center',color='white' if arr[i,j]>19 else '#0e2233',fontsize=10)
-    fig.colorbar(im,ax=ax,label='Within-period proportion (%)',shrink=.85)
-    ax.set_title('Serotype representation in public genomes (resolved serotypes)')
-    fig.savefig(out/'diagnostic_period_heatmap.png');fig.savefig(out/'diagnostic_period_heatmap.pdf');plt.close(fig)
-
-    fig,ax=plt.subplots(figsize=(9,4.5),layout='constrained')
-    r=annual[annual.denominator.eq('typed_only')]
-    sc=ax.scatter(r.Year,r.O11_percent,s=np.clip(r.n/3,16,350),c=r.n,cmap='viridis',edgecolor='white',linewidth=.8,zorder=3)
-    ax.plot(r.Year,r.O11_percent,color='#75869d',alpha=.7,lw=1,zorder=2)
-    fig.colorbar(sc,ax=ax,label='Serotyped genomes with year metadata',shrink=.8)
-    ax.set(xlabel='Isolation year',ylabel='O11 among serotyped genomes (%)',title='Annual O11 representation (diagnostic plot; all years)')
-    ax.set_xticks(range(2005,2025,2));fig.savefig(out/'diagnostic_annual_O11.png');fig.savefig(out/'diagnostic_annual_O11.pdf');plt.close(fig)
-
-    ss=ss.set_index('Serotype');target=['O11','O6','O4','O1'];x=np.arange(len(target))
-    c=ss.loc[target,'ST_frequency_component_pp'].values
-    w=ss.loc[target,'Within_ST_component_pp'].values
-    fig,ax=plt.subplots(figsize=(8.5,4.8),layout='constrained')
-    ax.bar(x-.16,c,width=.32,label='ST-frequency component',color='#385f8a')
-    ax.bar(x+.16,w,width=.32,label='Within-ST component',color='#a9bacd')
-    ax.plot(x,ss.loc[target,'Observed_change_pp'].values,'ko',label='Observed change')
-    ax.axhline(0,color='#333',linewidth=.7)
-    ax.set_xticks(x,target);ax.set_ylabel('Percentage-point change')
-    ax.set_title('Symmetric shift-share decomposition (2005–2009 to 2020–2024)')
-    ax.legend(frameon=False,ncol=2,fontsize=8)
-    fig.savefig(out/'diagnostic_shift_share.png');fig.savefig(out/'diagnostic_shift_share.pdf');plt.close(fig)
-
-
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--input',default='data/PA_7071.xlsx')
@@ -225,7 +173,6 @@ def main():
     assert abs(checks['known_ST']['cramers_v']-0.8873)<0.0001
     assert abs(checks['shift_O11']['ST_component_percent_of_change']-53.6956)<0.005
     with open(out/'audit_summary.json','w',encoding='utf-8') as f:json.dump(checks,f,indent=2,ensure_ascii=False)
-    plot_figures(out,period_sero,annual,ss)
     print('PASS: verified major calculations; written to',out)
     print(json.dumps(checks,indent=2,ensure_ascii=False))
 
